@@ -393,6 +393,45 @@ echo -e "${YELLOW}Installing preliminary package requirements${NC}"
 sleep 3
 sudo apt install software-properties-common git curl whiptail cron -y
 
+if [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
+
+#
+# ─── PRELIMINARY supervisor install fix ──────────────────────────────────────────────────────
+#
+
+echo "📦 Installing Supervisor and creating default config..."
+sudo apt update
+sudo apt install -y supervisor
+
+# Create default supervisor config if missing
+if [ ! -f /etc/supervisor/supervisord.conf ]; then
+  sudo tee /etc/supervisor/supervisord.conf > /dev/null <<'EOF'
+[unix_http_server]
+file=/var/run/supervisor.sock
+chmod=0700
+chown="$USER":"$USER"
+
+[supervisord]
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
+childlogdir=/var/log/supervisor
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix:///var/run/supervisor.sock
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+EOF
+fi
+
+sudo systemctl enable supervisor
+sudo systemctl restart supervisor
+
+fi
+
 #
 # ─── PYTHON AND REDIS INSTALL ───────────────────────────────────────────────────────────
 #
@@ -631,6 +670,38 @@ case "$continue_prod" in
         echo -e "${YELLOW}Installing packages and dependencies for Production...${NC}"
         sleep 2
 
+        if [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
+	        echo "🔧 Patching Ansible nginx vhosts condition..."
+	        sudo sed -i 's/when: nginx_vhosts/when: nginx_vhosts | length > 0/' \
+	        /usr/local/lib/python3.12/dist-packages/bench/playbooks/roles/nginx/tasks/vhosts.yml
+
+	        echo "🧹 Fixing nginx PID permissions before reload..."
+
+	        # Install nginx if it's not already installed
+	        if ! dpkg -s nginx >/dev/null 2>&1; then
+	          echo "📦 Nginx not found. Installing it now..."
+	          sudo apt update && sudo apt install -y nginx
+	        fi
+
+	        # Stop nginx if running
+	        sudo systemctl stop nginx 2>/dev/null || true
+
+	        # Clean up stale PID file
+	        sudo rm -f /var/run/nginx.pid || true
+
+	        # Ensure permissions on /var/run are correct
+	        sudo chown root:root /var/run
+
+	        # Remove default site if exists
+	        sudo rm -f /etc/nginx/sites-enabled/default || true
+
+	        # Start nginx now that it's installed
+	        sudo systemctl start nginx
+
+	        # Test nginx configuration (will fail if bench hasn’t generated it yet — that’s fine)
+	        sudo nginx -t || true
+        fi
+        
         yes | sudo bench setup production "$USER" && \
         echo -e "${YELLOW}Applying necessary permissions to supervisor...${NC}"
         sleep 1
