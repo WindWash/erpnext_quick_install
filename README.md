@@ -1,12 +1,13 @@
 # Unattended Install Script for ERPNext
-Unattended script for ERPNext installation (Supports Versions 13, 14, 15, and Develop).
+Unattended script for ERPNext installation (Supports Versions 13, 14, 15, 16, and Develop).
 
-This is a comprehensive, interactive script for installing ERPNext Versions 13, 14, 15, and the develop branch. You can set up either development or production environments with enhanced features including intelligent additional apps installation, comprehensive logging, and smart branch detection.
+This is a comprehensive, interactive script for installing ERPNext Versions 13, 14, 15, 16, and the develop branch. You can set up either development or production environments with enhanced features including intelligent additional apps installation, comprehensive logging, and smart branch detection.
 
 ## 🆕 What's New in This Version
 
 ### Enhanced Features
 - **Develop Branch Support**: Added comprehensive warnings and support for the bleeding-edge develop branch
+- **ERPNext v16 Support**: New version option with Python 3.14+ and Node.js 24 requirements
 - **Intelligent Additional Apps Installation**: Automated discovery and installation of 50+ compatible Frappe apps
 - **Smart Branch Detection**: Automatically detects and uses the best available branch for each app
 - **Improved Error Handling**: Multiple installation strategies and graceful fallbacks
@@ -14,7 +15,7 @@ This is a comprehensive, interactive script for installing ERPNext Versions 13, 
 
 ### Major Additions
 - **Additional Apps Marketplace**: Browse and install from 50+ curated Frappe applications
-- **Compatibility Checking**: Automatic validation for ERPNext v15/develop (pyproject.toml requirements)
+- **Compatibility Checking**: Automatic validation for ERPNext v15/v16/develop (pyproject.toml requirements)
 - **Branch Intelligence**: Frappe apps use appropriate version branches, third-party apps use default branches
 - **Installation Strategies**: Multiple fallback methods for app installation (setup.py extraction, name transformations, directory scanning)
 
@@ -103,8 +104,9 @@ source erpnext_install.sh
 - Debian 10 (Buster)
 
 **Version-Specific Requirements:**
-- **ERPNext v15/Develop**: Ubuntu 22.04+ or Debian 12+ only
-- **ERPNext v13/v14**: Ubuntu 22.04 and below, Debian 11 and below
+- **ERPNext v16**: Ubuntu 22.04+ or Debian 12+ only, Python 3.14+, Node.js 24
+- **ERPNext v15/Develop**: Ubuntu 22.04+ or Debian 12+ only, Python 3.10+, Node.js 18/20
+- **ERPNext v13/v14**: Ubuntu 22.04 and below, Debian 11 and below, Python 3.10+, Node.js 16
 
 ## 🚨 Important Disclaimers
 
@@ -112,9 +114,9 @@ source erpnext_install.sh
 
 **⚠️ CRITICAL: Different ERPNext versions should NOT be installed on the same server!**
 
-Installing multiple ERPNext versions (e.g., v15 + develop, or v14 + v15) on the same server can cause:
+Installing multiple ERPNext versions (e.g., v16 + develop, or v14 + v15) on the same server can cause:
 - **Redis port conflicts** (develop uses ports 11000, 12000, 13000 vs standard 6379)
-- **Node.js version conflicts** (v13/v14 use Node 16, v15/develop use Node 18/20)
+- **Node.js version conflicts** (v13/v14 use Node 16, v15/develop use Node 18/20, v16 uses Node 24)
 - **Supervisor configuration conflicts** (different service management approaches)
 - **Database schema incompatibilities** (version-specific database changes)
 - **Python dependency conflicts** (different package version requirements)
@@ -136,7 +138,7 @@ The **develop branch** contains bleeding-edge, experimental code that:
 - Has limited community support
 
 **Recommended for**: Experienced developers testing new features  
-**Better alternatives**: Version 15 (stable) or Version 14 (proven)
+**Better alternatives**: Version 16 (stable) or Version 15 (proven)
 
 ### Additional Apps Installation
 When installing additional Frappe apps, please note:
@@ -144,6 +146,7 @@ When installing additional Frappe apps, please note:
 - Some apps might fail to install due to version mismatches or missing dependencies
 - Third-party apps use their own versioning schemes
 - Installation success is not guaranteed for all environments
+- ERPNext v16: Apps not developed by Frappe are not tested yet; install at your own risk
 
 ## 📦 Additional Apps Feature
 
@@ -152,11 +155,11 @@ When installing additional Frappe apps, please note:
 - **Official Frappe Apps**: HRMS, CRM, LMS, Insights, Builder, Drive, Helpdesk, and more
 - **Third-Party Apps**: Community-developed applications for various business needs
 - **Smart Selection**: Interactive dialog for easy app selection
-- **Compatibility Checking**: Automatic validation for ERPNext v15/develop requirements
+- **Compatibility Checking**: Automatic validation for ERPNext v15/v16/develop requirements
 
 ### How It Works
 1. **Repository Scanning**: Fetches app list from awesome-frappe repository
-2. **Compatibility Validation**: Checks for pyproject.toml requirements (v15/develop)
+2. **Compatibility Validation**: Checks for pyproject.toml requirements (v15/v16/develop)
 3. **Branch Detection**: Automatically selects the best available branch for each app
 4. **Multiple Installation Strategies**: Falls back through different installation methods
 5. **Comprehensive Reporting**: Detailed success/failure reporting with error details
@@ -184,13 +187,21 @@ Thank you Gavin for your valuable contribution to the Frappe ecosystem! 🎉
 
 ## 📋 Changelog
 
-### Version 2.0 (Latest)
+### Version 2.1 (Latest)
+**Major Features Added:**
+- ✅ ERPNext v16 support (Python 3.14+, Node.js 24)
+- ✅ Updated compatibility checks for v15/v16/develop
+
+**User Experience:**
+- 💬 Updated prompts and documentation for v16 selection
+
+### Version 2.0
 **Major Features Added:**
 - ✨ Develop branch support with comprehensive warnings
 - 🏪 Additional apps marketplace with 50+ applications
 - 🧠 Intelligent branch detection for Frappe apps
 - 🔄 Multiple installation strategies with fallbacks
-- 🎯 Smart compatibility checking for v15/develop
+- 🎯 Smart compatibility checking for v15/v16/develop
 - 🖼️ Improved user interface with better prompts and progress indicators
 
 **Technical Improvements:**
@@ -230,7 +241,7 @@ bench --site <site-name> install-app <app-name>
 ### Troubleshooting Redis Issues
 If you encounter Redis connection errors (Error 111 connecting to 127.0.0.1:11001):
 
-**For ERPNext v15:**
+**For ERPNext v15/v16:**
 ```bash
 cd /path/to/frappe-bench
 bench setup socketio

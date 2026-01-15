@@ -239,6 +239,9 @@ detect_best_branch() {
     esac
     
     case "$preferred_version" in
+        "version-16")
+            branch_priorities=("version-16" "version-15" "develop" "main" "master" "version-14" "version-13")
+            ;;
         "version-15"|"develop")
             branch_priorities=("version-15" "develop" "main" "master" "version-14" "version-13")
             ;;
@@ -273,13 +276,14 @@ sleep 3
 
 echo -e "${YELLOW}Please enter the number of the corresponding ERPNext version you wish to install:${NC}"
 
-versions=("Version 13" "Version 14" "Version 15" "Develop")
+versions=("Version 13" "Version 14" "Version 15" "Version 16" "Develop")
 select version_choice in "${versions[@]}"; do
     case $REPLY in
         1) bench_version="version-13"; break;;
         2) bench_version="version-14"; break;;
         3) bench_version="version-15"; break;;
-        4) bench_version="develop"; 
+        4) bench_version="version-16"; break;;
+        5) bench_version="develop"; 
            echo ""
            echo -e "${RED}⚠️  WARNING: DEVELOP VERSION ⚠️${NC}"
            echo ""
@@ -329,17 +333,17 @@ sleep 2
 check_existing_installations
 
 #
-# ─── OS COMPATIBILITY FOR VERSION-15 OR DEVELOP ────────────────────────────────────────
+# ─── OS COMPATIBILITY FOR VERSION-15/16 OR DEVELOP ─────────────────────────────────────
 #
-if [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
     if [[ "$(lsb_release -si)" != "Ubuntu" && "$(lsb_release -si)" != "Debian" ]]; then
-        echo -e "${RED}Your Distro is not supported for Version 15/Develop.${NC}"
+        echo -e "${RED}Your Distro is not supported for Version 15/16/Develop.${NC}"
         exit 1
     elif [[ "$(lsb_release -si)" == "Ubuntu" && "$(lsb_release -rs)" < "22.04" ]]; then
-        echo -e "${RED}Your Ubuntu version is below the minimum required to support Version 15/Develop.${NC}"
+        echo -e "${RED}Your Ubuntu version is below the minimum required to support Version 15/16/Develop.${NC}"
         exit 1
     elif [[ "$(lsb_release -si)" == "Debian" && "$(lsb_release -rs)" < "12" ]]; then
-        echo -e "${RED}Your Debian version is below the minimum required to support Version 15/Develop.${NC}"
+        echo -e "${RED}Your Debian version is below the minimum required to support Version 15/16/Develop.${NC}"
         exit 1
     fi
 fi
@@ -347,13 +351,13 @@ fi
 #
 # ─── OS COMPATIBILITY FOR OLDER VERSIONS (version-13, version-14) ───────────────────────
 #
-if [[ "$bench_version" != "version-15" && "$bench_version" != "develop" ]]; then
+if [[ "$bench_version" != "version-15" && "$bench_version" != "version-16" && "$bench_version" != "develop" ]]; then
     if [[ "$(lsb_release -si)" != "Ubuntu" && "$(lsb_release -si)" != "Debian" ]]; then
         echo -e "${RED}Your Distro is not supported for $version_choice.${NC}"
         exit 1
     elif [[ "$(lsb_release -si)" == "Ubuntu" && "$(lsb_release -rs)" > "22.04" ]]; then
         echo -e "${RED}Your Ubuntu version is not supported for $version_choice.${NC}"
-        echo -e "${YELLOW}ERPNext v13/v14 only support Ubuntu up to 22.04. Please use ERPNext v15 for Ubuntu 24.04.${NC}"
+        echo -e "${YELLOW}ERPNext v13/v14 only support Ubuntu up to 22.04. Please use ERPNext v15/v16 for Ubuntu 24.04.${NC}"
         exit 1
     elif [[ "$(lsb_release -si)" == "Debian" && "$(lsb_release -rs)" > "11" ]]; then
         echo -e "${YELLOW}Warning: Your Debian version is above the tested range for $version_choice, but we'll continue.${NC}"
@@ -442,27 +446,37 @@ py_version=$(python3 --version 2>&1 | awk '{print $2}')
 py_major=$(echo "$py_version" | cut -d '.' -f 1)
 py_minor=$(echo "$py_version" | cut -d '.' -f 2)
 
-if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt 10 ]]; then
-    echo -e "${LIGHT_BLUE}It appears this instance does not meet the minimum Python version required for ERPNext 14 (Python3.10)...${NC}"
+required_python_minor=10
+required_python_label="3.10"
+required_python_full="3.10.11"
+
+if [[ "$bench_version" == "version-16" ]]; then
+    required_python_minor=14
+    required_python_label="3.14"
+    required_python_full="3.14.0"
+fi
+
+if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt "$required_python_minor" ]]; then
+    echo -e "${LIGHT_BLUE}It appears this instance does not meet the minimum Python version required for ERPNext ${version_choice} (Python${required_python_label})...${NC}"
     sleep 2 
     echo -e "${YELLOW}Not to worry, we will sort it out for you${NC}"
     sleep 4
-    echo -e "${YELLOW}Installing Python 3.10+...${NC}"
+    echo -e "${YELLOW}Installing Python ${required_python_label}+...${NC}"
     sleep 2
 
     sudo apt -qq install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev -y && \
-    wget https://www.python.org/ftp/python/3.10.11/Python-3.10.11.tgz && \
-    tar -xf Python-3.10.11.tgz && \
-    cd Python-3.10.11 && \
+    wget https://www.python.org/ftp/python/${required_python_full}/Python-${required_python_full}.tgz && \
+    tar -xf Python-${required_python_full}.tgz && \
+    cd Python-${required_python_full} && \
     ./configure --prefix=/usr/local --enable-optimizations --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib" && \
     make -j "$(nproc)" && \
     sudo make altinstall && \
     cd .. && \
-    sudo rm -rf Python-3.10.11 && \
-    sudo rm Python-3.10.11.tgz && \
-    pip3.10 install --user --upgrade pip && \
-    echo -e "${GREEN}Python3.10 installation successful!${NC}"
+    sudo rm -rf Python-${required_python_full} && \
+    sudo rm Python-${required_python_full}.tgz && \
+    pip3."${required_python_minor}" install --user --upgrade pip && \
+    echo -e "${GREEN}Python${required_python_label} installation successful!${NC}"
     sleep 2
 fi
 
@@ -562,7 +576,11 @@ export NVM_DIR="$HOME/.nvm"
 
 
 os_version=$(lsb_release -rs)
-if [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
+if [[ "$bench_version" == "version-16" ]]; then
+    nvm install 24
+    nvm alias default 24
+    node_version="24"
+elif [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
     nvm install 20
     nvm alias default 20
     node_version="20"
@@ -582,8 +600,8 @@ echo -e "${GREEN}nvm and Node (v${node_version}) have been installed and aliased
 echo -e "${GREEN}Yarn v$(yarn --version) (Classic) installed globally.${NC}"
 sleep 2
 
-if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt 10 ]]; then
-    python3.10 -m venv "$USER"
+if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt "$required_python_minor" ]]; then
+    python3."${required_python_minor}" -m venv "$USER"
     source "$USER/bin/activate"
     nvm use default
 fi
@@ -634,13 +652,13 @@ bench new-site "$site_name" \
   --db-root-password "$sqlpasswrd" \
   --admin-password "$adminpasswrd"
 
-if [[ "$bench_version" == "develop" ]]; then
-    echo -e "${YELLOW}Starting Redis instances for develop branch (queue, cache, and socketio)...${NC}"
+if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
+    echo -e "${YELLOW}Starting Redis instances for $bench_version (queue, cache, and socketio)...${NC}"
     sleep 1
     redis-server --port 11000 --daemonize yes --bind 127.0.0.1
     redis-server --port 12000 --daemonize yes --bind 127.0.0.1
     redis-server --port 13000 --daemonize yes --bind 127.0.0.1
-    echo -e "${GREEN}Redis instances started for develop branch.${NC}"
+    echo -e "${GREEN}Redis instances started for $bench_version.${NC}"
     sleep 1
 fi
 
@@ -658,8 +676,25 @@ case "$erpnext_install" in
 esac
 
 python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-playbook_file="/usr/local/lib/python${python_version}/dist-packages/bench/playbooks/roles/mariadb/tasks/main.yml"
-sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+bench_module_dir=$(python3 -c "import bench, os; print(os.path.dirname(bench.__file__))" 2>/dev/null || true)
+playbook_file=""
+
+if [[ -n "$bench_module_dir" ]]; then
+    playbook_file="$bench_module_dir/playbooks/roles/mariadb/tasks/main.yml"
+fi
+
+if [[ -z "$playbook_file" || ! -f "$playbook_file" ]]; then
+    playbook_file="/usr/local/lib/python${python_version}/dist-packages/bench/playbooks/roles/mariadb/tasks/main.yml"
+    if [[ ! -f "$playbook_file" ]]; then
+        playbook_file="/usr/local/lib/python${python_version}/site-packages/bench/playbooks/roles/mariadb/tasks/main.yml"
+    fi
+fi
+
+if [[ -f "$playbook_file" ]]; then
+    sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+else
+    echo -e "${YELLOW}Could not locate bench MariaDB playbook to patch include_tasks. Skipping.${NC}"
+fi
 
 echo -e "${LIGHT_BLUE}Would you like to continue with production install? (yes/no)${NC}"
 read -p "Response: " continue_prod
@@ -725,7 +760,7 @@ case "$continue_prod" in
         bench --site "$site_name" scheduler enable && \
         bench --site "$site_name" scheduler resume
 
-        if [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+        if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
             echo -e "${YELLOW}Setting up Socketio, Redis and Supervisor for $bench_version...${NC}"
             sleep 1
             bench setup socketio
@@ -743,7 +778,10 @@ case "$continue_prod" in
         sudo systemctl restart redis-server
         sleep 2
         
-        sudo supervisorctl restart all
+        if ! sudo supervisorctl restart all; then
+            echo -e "${YELLOW}Warning: supervisorctl restart all reported errors. Some services (often Redis) may have failed to spawn.${NC}"
+            echo -e "${YELLOW}You can retry later with: sudo supervisorctl restart all${NC}"
+        fi
         sleep 3
 
         printf "${GREEN}Production setup complete! "
@@ -776,6 +814,11 @@ case "$continue_prod" in
                 else
                     echo -e "${GREEN}Proceeding with additional apps installation...${NC}"
                     echo ""
+                    if [[ "$bench_version" == "version-16" ]]; then
+                        echo -e "${YELLOW}⚠️  ERPNext v16 caveat:${NC}"
+                        echo -e "${YELLOW}Apps not developed by Frappe are not tested on v16 yet. Install at your own risk.${NC}"
+                        echo ""
+                    fi
                     
                     echo -e "${YELLOW}Fetching available apps from awesome-frappe repository...${NC}"
                 tmp_dir=$(mktemp -d)
@@ -812,7 +855,7 @@ case "$continue_prod" in
                             declare -a repo_names=()
                             declare -a url_array=()
                             
-                            if [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+                            if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
                                 echo -e "${YELLOW}Checking app compatibility with $bench_version...${NC}"
                                 echo -e "${LIGHT_BLUE}This may take a moment, please wait...${NC}"
                                 
@@ -1015,15 +1058,15 @@ case "$continue_prod" in
                             url_array=("${final_urls[@]}")
 
                             if [ "${#display_names[@]}" -eq 0 ]; then
-                                if [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+                                if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
                                     echo -e "${RED}No apps with pyproject.toml found that are compatible with $bench_version.${NC}"
-                                    echo -e "${YELLOW}ERPNext v15/develop requires apps to have pyproject.toml files.${NC}"
+                                    echo -e "${YELLOW}ERPNext v15/v16/develop requires apps to have pyproject.toml files.${NC}"
                                 else
                                     echo -e "${RED}No valid Frappe apps found in awesome-frappe README.${NC}"
                                 fi
                                 rm -rf "$tmp_dir"
                             else
-                                if [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+                                if [[ "$bench_version" == "version-15" || "$bench_version" == "version-16" || "$bench_version" == "develop" ]]; then
                                     echo -e "${GREEN}Found ${#display_names[@]} compatible apps with pyproject.toml for $bench_version.${NC}"
                                 else
                                     echo -e "${GREEN}Found ${#display_names[@]} available apps for $bench_version.${NC}"
@@ -1332,7 +1375,7 @@ case "$continue_prod" in
                 ;;
         esac
 
-        if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt 10 ]]; then
+        if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt "$required_python_minor" ]]; then
             deactivate
         fi
 
@@ -1350,7 +1393,9 @@ case "$continue_prod" in
         echo -e "${YELLOW}Getting your site ready for development...${NC}"
         sleep 2
         source ~/.profile
-        if [[ "$bench_version" == "version-15" ]]; then
+        if [[ "$bench_version" == "version-16" ]]; then
+            nvm alias default 24
+        elif [[ "$bench_version" == "version-15" ]]; then
             nvm alias default 18
         else
             nvm alias default 16
